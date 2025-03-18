@@ -1,115 +1,64 @@
+using MauiAppMinhasCompras.Models; // Importa o namespace onde está definida a classe Produto
 
-using MauiAppMinhasCompras.Modells;
-using System.Collections.ObjectModel;
+namespace MauiAppMinhasCompras.Views; // Define o namespace da classe EditarProduto
 
-namespace MauiAppMinhasCompras.Views;
-
-
-public partial class ListaProduto : ContentPage
+public partial class EditarProduto : ContentPage // Declaração da classe EditarProduto que herda de ContentPage
 {
-    ObservableCollection<Produto> lista = new ObservableCollection<Produto>();
-    public ListaProduto()
+    public EditarProduto() // Construtor da classe
     {
-        InitializeComponent();
-        lst_produtos.ItemsSource = lista;
+        InitializeComponent(); // Inicializa os componentes visuais definidos no arquivo XAML correspondente
     }
 
-    protected override async void OnAppearing()
+    private async void ToolbarItem_Clicked(object sender, EventArgs e) // Método acionado quando o usuário clica no item da Toolbar
     {
         try
         {
-            List<Produto> tmp = await App.Db.GetAll();
-            lista.Clear();
-
-
-            tmp.ForEach(i => lista.Add(i));
-
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Ops", ex.Message, "OK");
-
-        }
-
-    }
-    private void ToolbarItem_Clicked(object sender, EventArgs e)
-    {
-        try
-        {
-            Navigation.PushAsync(new Views.NovoProduto());
-        }
-        catch (Exception ex)
-        {
-            DisplayAlert("ops", ex.Message, "OK");
-
-        }
-    }
-
-
-    private async void txt_search_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        try
-        {
-            string q = e.NewTextValue;
-
-            lista.Clear();
-
-            List<Produto> tmp = await App.Db.Search(q);
-
-            tmp.ForEach(i => lista.Add(i));
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Ops", ex.Message, "OK");
-        }
-    }
-
-    private void ToolbarItem_Clicked_1(object sender, EventArgs e)
-    {
-        double soma = lista.Sum(i => i.Total);
-
-        string msg = $"O total é {soma:C}";
-
-        DisplayAlert("Total produtos", msg, "OK");
-    }
-
-    private async void MenuItem_Clicked(object sender, EventArgs e)
-    {
-        try
-        {
-            MenuItem selecionado = sender as MenuItem;
-
-            Produto p = selecionado.BindingContext as Produto;
-
-            bool confirm = await DisplayAlert(
-                "Tem certeza?", $"Remover {p.Descricao}?", "sim", "não");
-
-            if (confirm)
+            // Verifica se o BindingContext (o contexto de dados associado à página) é um objeto do tipo Produto
+            if (BindingContext is not Produto produto_anexado)
             {
-                await App.Db.Delete(p.Id);
-                lista.Remove(p);
+                // Se não houver um produto anexado, exibe um alerta informando o erro ao usuário
+                await DisplayAlert("Erro", "Nenhum produto foi anexado.", "OK");
+                return; // Encerra a execução do método para evitar erros posteriores
             }
-        }
-        catch (Exception ex)
-        {
-            DisplayAlert("Ops", ex.Message, "OK");
-        }
-    }
 
-    private void lst_produtos_ItemSelected(object sender, SelectedItemChangedEventArgs e)
-    {
-        try
-        {
-            Produto p = e.SelectedItem as Produto;
-
-            Navigation.PushAsync(new Views.EditarProduto
+            // Tenta converter o texto digitado no campo txt_quantidade para um número (double)
+            if (!double.TryParse(txt_quantidade.Text, out double quantidade))
             {
-                BindingContext = p,
-            });
+                // Se a conversão falhar, exibe um alerta informando que a quantidade é inválida
+                await DisplayAlert("Erro", "Quantidade inválida.", "OK");
+                return; // Sai do método para evitar erro ao tentar usar um valor inválido
+            }
+
+            // Tenta converter o texto digitado no campo txt_preco para um número (double)
+            if (!double.TryParse(txt_preco.Text, out double preco))
+            {
+                // Se a conversão falhar, exibe um alerta informando que o preço é inválido
+                await DisplayAlert("Erro", "Preço inválido.", "OK");
+                return; // Sai do método para evitar erro ao tentar usar um valor inválido
+            }
+
+            // Cria um novo objeto Produto com os valores obtidos dos campos de entrada
+            Produto p = new Produto
+            {
+                Id = produto_anexado.Id, // Mantém o mesmo ID do produto original, garantindo que será atualizado e não criado um novo
+                Descricao = txt_descricao.Text, // Obtém a descrição digitada pelo usuário no campo correspondente
+                Quantidade = quantidade, // Define a quantidade validada
+                Preco = preco, // Define o preço validado
+            };
+
+            // Chama o método Update do banco de dados para atualizar o registro do produto
+            await App.Db.Update(p);
+
+            // Exibe uma mensagem informando que a atualização foi concluída com sucesso
+            await DisplayAlert("Sucesso!", "Registro Atualizado", "OK");
+
+            // Retorna para a página anterior na navegação, fechando a tela de edição
+            await Navigation.PopAsync();
         }
-        catch (Exception ex)
+        catch (Exception ex) // Captura qualquer erro inesperado que possa ocorrer
         {
-            DisplayAlert("Ops", ex.Message, "OK");
+            // Exibe um alerta contendo a mensagem de erro para o usuário
+            await DisplayAlert("Ops", ex.Message, "OK");
         }
     }
 }
